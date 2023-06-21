@@ -1,0 +1,88 @@
+extern crate chrono;
+extern crate crypto;
+
+use chrono::{DateTime, Utc};
+use crypto::digest::Digest;
+use crypto::sha2::Sha256;
+use std::fmt;
+
+// Define the block structure
+struct Block {
+    index: u32,
+    timestamp: DateTime<Utc>,
+    data: String,
+    previous_hash: String,
+    hash: String,
+}
+
+impl Block {
+    fn new(index: u32, timestamp: DateTime<Utc>, data: String, previous_hash: String) -> Block {
+        let hash = Block::calculate_hash(index, &timestamp, &data, &previous_hash);
+        Block {
+            index,
+            timestamp,
+            data,
+            previous_hash,
+            hash,
+        }
+    }
+
+    fn calculate_hash(index: u32, timestamp: &DateTime<Utc>, data: &str, previous_hash: &str) -> String {
+        let content = format!("{}{}{}{}", index, timestamp, data, previous_hash);
+        let mut hasher = Sha256::new();
+        hasher.input_str(&content);
+        hasher.result_str()
+    }
+}
+
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Block #{}[Hash: {}, Previous Hash: {}, Timestamp: {}, Data: {}]",
+            self.index, self.hash, self.previous_hash, self.timestamp, self.data
+        )
+    }
+}
+
+// Define the blockchain structure
+struct Blockchain {
+    chain: Vec<Block>,
+}
+
+impl Blockchain {
+    fn new() -> Blockchain {
+        let genesis_block = Block::new(0, Utc::now(), "Genesis Block".to_owned(), "0".to_owned());
+        Blockchain {
+            chain: vec![genesis_block],
+        }
+    }
+
+    fn get_latest_block(&self) -> Option<&Block> {
+        self.chain.last()
+    }
+
+    fn add_block(&mut self, new_block: Block) {
+        if let Some(previous_block) = self.get_latest_block() {
+            if previous_block.hash != new_block.previous_hash {
+                println!("Invalid block. Ignoring.");
+                return;
+            }
+        }
+        self.chain.push(new_block);
+    }
+}
+
+fn main() {
+    let mut blockchain = Blockchain::new();
+
+    // Add some blocks to the blockchain
+    blockchain.add_block(Block::new(1, Utc::now(), "Transaction 1".to_owned(), blockchain.get_latest_block().unwrap().hash.clone()));
+    blockchain.add_block(Block::new(2, Utc::now(), "Transaction 2".to_owned(), blockchain.get_latest_block().unwrap().hash.clone()));
+    blockchain.add_block(Block::new(3, Utc::now(), "Transaction 3".to_owned(), blockchain.get_latest_block().unwrap().hash.clone()));
+
+    // Print the blockchain
+    for block in &blockchain.chain {
+        println!("{}", block);
+    }
+}
